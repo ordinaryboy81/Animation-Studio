@@ -1,0 +1,4 @@
+@font-face { font-family: "Nunito"; src: url("fontlar/Nunito.ttf") format("truetype"); font-weight: 200 1000; font-display: block; }
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+svg { display: block; }
+text { font-family: "Nunito", sans-serif; }

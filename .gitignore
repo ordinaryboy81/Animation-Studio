@@ -1,0 +1,20 @@
+# Your own work and downloaded tools stay on your computer
+projeler/*
+!projeler/.gitkeep
+tts/
+veri/studyo.log
+veri/.kisayol
+.ortam/
+.mac_ortam/
+.python/
+.uv_cache/
+.bin/
+bin/
+__pycache__/
+*.pyc
+.studyo.log
+.DS_Store
+Thumbs.db
+# Built installers go to GitHub Releases, not into the repository
+paket/cikti/
+paket/uv.exe
