@@ -30,7 +30,7 @@ Bu klasör, kullanıcının bilgisayarında çalışan bir animasyon video stüd
 - **Sonunda net bir çağrı:** "Takip et", "Yorumlara yaz", kaynak satırı.
 
 ## Diller ve çeviri
-- Kullanıcı stüdyonun Claude'a bağlı olmadan çalışmasını istiyor. Yeni videoda seslendirme ve ekran yazılarını **sadece kaynak dilde** (genelde `tr`) yaz; kullanıcı istemedikçe diğer dilleri yazma. Kullanıcı stüdyoda Çevir ile bilgisayarında çevirir (Qwen3-4B, Chatterbox ortamında).
+- Kullanıcı stüdyonun Claude'a bağlı olmadan çalışmasını istiyor. Yeni videoda seslendirme ve ekran yazılarını **sadece kaynak dilde** (kullanıcının istediği dil; `diller` listesinde ilk sırada) yaz; kullanıcı istemedikçe diğer dilleri yazma. Kullanıcı stüdyoda Çevir ile bilgisayarında çevirir (Qwen3-4B, Chatterbox ortamında).
 - Ekran yazılarını yine dil nesnesi olarak yaz: `metin: { tr: "..." }`. Çeviri bu nesneleri bulur; düz dize (`metin: "..."`) çevrilmez.
 - Çeviriler projenin `ceviri.json` dosyasındadır (`diller.<dil>.anlatim.<sahne no>`, `diller.<dil>.ekran.<kaynak yazı>`). Senaryoda yazılı olan dil her zaman önceliklidir. Bu dosyaya dokunma; kaynak metni değiştirirsen kullanıcıya "Çevir → Önceki çevirileri yenile" yapmasını söyle.
 
@@ -69,7 +69,7 @@ sahneler:
     baslik: Kanca
     dosya: sahneler/01_kanca.html
     sure: 5                   # saniye
-    anlatim: {tr: "...", en: "...", pl: "..."}   # seslendirme metni: en fazla ~ sure x 2.3 kelime
+    anlatim: {tr: "...", en: "...", pl: "..."}   # seslendirme metni: en fazla ~ sure x 2.0 kelime
     storyboard:               # stüdyodaki Storyboard penceresinde görünür
       ekranda: "Ortada büyük sarı 3, altında ahtapot"
       hareket: "3 sayarak gelir, ahtapot süzülür, kamera yavaşça yaklaşır"
