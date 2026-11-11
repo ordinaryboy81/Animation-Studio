@@ -1,4 +1,0 @@
-pillow>=10
-numpy
-pyyaml
-playwright

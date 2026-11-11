@@ -1,5 +1,5 @@
 # Builds the installers and publishes a GitHub release whenever the version in .surum changes.
-# Raise the number in .surum, add a note to degisiklikler.json, push to main: the rest is automatic.
+# Raise the number in .surum, add a note to changelog.json, push to main: the rest is automatic.
 name: Release
 
 on:
@@ -32,7 +32,7 @@ jobs:
 
       - name: Build installers
         if: steps.v.outputs.var == '0'
-        run: bash paket/build.sh
+        run: bash packaging/build.sh
 
       - name: Write release notes
         if: steps.v.outputs.var == '0'
@@ -40,7 +40,7 @@ jobs:
           python3 - "${{ steps.v.outputs.surum }}" > notlar.md <<'PY'
           import json, sys
           surum = sys.argv[1]
-          for n in json.load(open("degisiklikler.json", encoding="utf-8")):
+          for n in json.load(open("changelog.json", encoding="utf-8")):
               if n.get("surum") == surum:
                   print("\n".join("- " + x for x in n.get("en", [])))
                   break
@@ -55,7 +55,7 @@ jobs:
       - name: Publish release
         if: steps.v.outputs.var == '0'
         run: |
-          gh release create "v${{ steps.v.outputs.surum }}" paket/cikti/* \
+          gh release create "v${{ steps.v.outputs.surum }}" packaging/dist/* \
             --title "Animation Studio ${{ steps.v.outputs.surum }}" --notes-file notlar.md --latest
         env:
           GH_TOKEN: ${{ github.token }}

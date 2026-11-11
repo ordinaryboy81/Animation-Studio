@@ -1,0 +1,6 @@
+pillow>=10
+numpy
+pyyaml
+playwright
+uv
+ffmpeg-binaries

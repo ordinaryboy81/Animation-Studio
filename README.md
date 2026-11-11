@@ -65,7 +65,7 @@ Apple-silicon Mac. Everything except those three works on any recent computer.
 2. **Describe the video.** For example: *"Using the animation studio in this folder, make a
    40-second vertical video on why octopuses have three hearts. Write the narration in English.
    Propose a storyboard first."* Claude proposes a numbered storyboard, then writes the project
-   into `projeler/`.
+   into `projects/`.
 3. **Open the studio** and pick the project. Preview it, use **Storyboard** to check key frames,
    and tell Claude what to change by scene number.
 4. **Voice-over**: install Chatterbox once, choose or record a voice, press **Generate missing**.
@@ -81,50 +81,55 @@ You need Python 3.11 or newer and Microsoft Edge or Google Chrome.
 ```
 git clone https://github.com/ordinaryboy81/Animation-Studio.git
 cd Animation-Studio
-pip install -r gereksinimler.txt
-python arayuz.py
+pip install -r requirements.txt
+python studio.py
 ```
 
-On Windows you can double-click `BASLAT.bat`; on macOS `BASLAT.command` sets up its own Python
+On Windows you can double-click `Start.bat`; on macOS `Start.command` sets up its own Python
 environment. The studio opens at http://127.0.0.1:8765.
 
 ## Project layout
 
-The code and file names are in Turkish; the interface is bilingual.
+File and folder names are in English. The code's comments, the project file format
+(`video.yaml`) and the scene API are in Turkish; the interface is bilingual.
 
 | Path | What it is |
 | --- | --- |
-| `arayuz.py` | the studio: local web server and interface |
-| `olustur.py` | renderer: scenes to frames to video, audio mix, subtitles |
-| `tts_yonetici.py`, `motor/chatterbox_isci.py` | Chatterbox, Whisper and translation workers |
-| `ceviri.py` | translation storage |
-| `motor/vektor/vektor.js` | the vector animation engine scenes are written against |
+| `studio.py` | the studio: local web server and interface |
+| `render.py` | renderer: scenes to frames to video, audio mix, subtitles |
+| `voice.py`, `engine/voice_worker.py` | Chatterbox, Whisper and translation workers |
+| `translation.py` | translation storage |
+| `updater.py`, `changelog.json` | self-update from this repository, and its release notes |
+| `engine/vector/`, `engine/3d/`, `engine/pixel/` | the three scene engines (vector, Three.js 3D, pixel art) |
+| `engine/sounds/` | built-in sound effects and music |
+| `tools/grid.py` | draws a coordinate grid on an image, for placing puppet pins |
 | `CLAUDE.md` | instructions Claude follows when writing scenes (Turkish) |
-| `bos_sablon.yaml` | every option a project file (`video.yaml`) can have |
-| `projeler/` | your projects (ignored by git) |
-| `paket/` | installer sources; `bash paket/build.sh` builds both installers |
+| `template.yaml` | every option a project file (`video.yaml`) can have |
+| `projects/` | your projects (ignored by git) |
+| `packaging/` | installer sources; `bash packaging/build.sh` builds both installers |
+| `arayuz.py` | a two-line forwarder to `studio.py`, kept for launchers from version 1.2 and older |
 
 ## Building the installers
 
 ```
-bash paket/build.sh
+bash packaging/build.sh
 ```
 
-Needs `makensis` (NSIS 3), `zip`, `curl` and `unzip`. The results appear in `paket/cikti/`.
+Needs `makensis` (NSIS 3), `zip`, `curl` and `unzip`. The results appear in `packaging/dist/`.
 
 ## Updates and releases
 
 - The studio compares its `.surum` file with the one on the `main` branch of this repository.
   When `main` has a higher version, the studio offers to update; the notes shown come from
-  `degisiklikler.json`. You can also check by hand in **Guide → Check for updates**.
-- The update downloads the source of `main`, replaces the program files only (never `projeler/`,
-  voices, the Python environment or settings), reinstalls packages if `gereksinimler.txt`
+  `changelog.json`. You can also check by hand in **Guide → Check for updates**.
+- The update downloads the source of `main`, replaces the program files only (never `projects/`,
+  voices, the Python environment or settings), reinstalls packages if `requirements.txt`
   changed, and restarts the studio.
 - To publish an update: change the code, raise the version in `.surum`, add a note to
-  `degisiklikler.json`, and push to `main`. Installed studios pick it up on their next start.
+  `changelog.json`, and push to `main`. Installed studios pick it up on their next start.
 - Installers on the Releases page are only needed for new installs. They are built and published
   automatically by `.github/workflows/release.yml` whenever `.surum` changes on `main`. To build
-  them by hand: `bash paket/build.sh` (results in `paket/cikti/`).
+  them by hand: `bash packaging/build.sh` (results in `packaging/dist/`).
 - Forks can point the updater at their own repository with the environment variable
   `ANIMASYON_DEPO=owner/repo`.
 

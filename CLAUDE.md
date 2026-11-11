@@ -6,7 +6,7 @@ Bu klasör, kullanıcının bilgisayarında çalışan bir animasyon video stüd
 
 ## Çalışma kuralları
 - Videoyu kendin render etme. Dosyaları yaz, kullanıcı stüdyoda (tarayıcıda açılan "Animasyon Stüdyosu") önizleyip **Video Oluştur**'a basar.
-- Yeni video = `projeler/<kisa-ad>/` altında yeni bir klasör (küçük harf, Türkçe karakter ve boşluk yok, örn. `bal-neden-bozulmaz`).
+- Yeni video = `projects/<kisa-ad>/` altında yeni bir klasör (küçük harf, Türkçe karakter ve boşluk yok, örn. `bal-neden-bozulmaz`).
 - Sağlık, bilim ve istatistik bilgilerini güvenilir kaynaklardan doğrula, kaynakları son sahnede küçük yazıyla göster. Sağlık videolarının sonuna "bilgilendirme amaçlıdır, doktoruna danış" notu ekle.
 - Karakterler ve çizimler özgün olmalı. Bilinen çizgi film karakterlerini, logoları ya da markaları taklit etme.
 - **Tarz:** `video.yaml`'daki `stil:` alanı projenin tarzıdır: `vektor` (2D, varsayılan), `uc` (3D) ya da `piksel` (piksel art). Kullanıcı stüdyoda yeni proje açarken seçer. Yeni sahneleri bu tarzda yaz (`tur:` aynı değer); kullanıcı istemedikçe tarzları karıştırma. Proje yoksa ve kullanıcı tarz söylemediyse sor ya da konuya uygun olanı öner.
@@ -46,11 +46,11 @@ Bu klasör, kullanıcının bilgisayarında çalışan bir animasyon video stüd
 ## El yapımı his ve kukla (isteğe bağlı)
 - `V.sahne({..., poz: 12, titreme: 1.5, cikartma: true})`: saniyede 12 poz (8 daha "kaba"), her pozda hafif çizgi titremesi, düz ve sert "çıkartma" gölgesi. Böyle sahneleri olan projede `fps: 24` kullan (her poz tam 2 kare). Pürüzsüz Kurzgesagt tarzında bunları kullanma; daha el çizimi, çizgi film tarzı videolar için.
 - **Karakterler eklemli parçalardan oluşsun.** `V.kisi` karakterinin kolları omuz ve dirsekten dönen sert parçalardır: her karede `kisi.kol("sag", omuzAcisi, dirsekAcisi)` (0 = aşağı sarkık, 90 = yana, 170 = yukarı) ve `kisi.basEg(aci)`. El sallama, işaret etme, omuz silkme bununla yapılır; hiçbir şey esnemez. Kendi çizdiğin karakterlerde de kolu, başı, kuyruğu ayrı `V.g` grupları yap ve eklem noktasının etrafında döndür.
-- **Kukla (`V.kukla`, PNG'yi pinlerle bükme) sadece çok küçük hareketler için:** nefes, saçın hafif dalgalanması, başın birkaç derece eğilmesi. Kol kaldırma, el sallama gibi hareketlerde lastik gibi esner ve kötü görünür; öyle hareketler için parçaları ayrı katman olarak çiz. Pin koordinatları için `python araclar/izgara.py resim.png izgara.png`; ayaklara, omuzlara, kalçaya sabit (boş hareketli) pinler koy.
+- **Kukla (`V.kukla`, PNG'yi pinlerle bükme) sadece çok küçük hareketler için:** nefes, saçın hafif dalgalanması, başın birkaç derece eğilmesi. Kol kaldırma, el sallama gibi hareketlerde lastik gibi esner ve kötü görünür; öyle hareketler için parçaları ayrı katman olarak çiz. Pin koordinatları için `python tools/grid.py resim.png izgara.png`; ayaklara, omuzlara, kalçaya sabit (boş hareketli) pinler koy.
 
 ## Proje yapısı
 ```
-projeler/<ad>/
+projects/<ad>/
   video.yaml          senaryo: diller, format, müzik, sahne listesi, seslendirme metinleri
   sahneler/NN_ad.html vektör sahneler (tarayıcıda SVG ile çizilir)
   sahneler/_ahtapot.js örnek: birden çok sahnede kullanılan ortak çizim fonksiyonları
@@ -64,7 +64,7 @@ ad: proje-adi
 diller: [tr, en, pl]          # her dil için ayrı video üretilir
 format: dikey                 # vektör sahneler dikey (1080x1920) tasarlanır
 fps: 30
-muzik: {dosya: ortam_muzik.mp3, ses: 0.6}
+muzik: {dosya: ambient_music.mp3, ses: 0.6}
 sahneler:
   - tur: vektor
     baslik: Kanca
@@ -75,17 +75,17 @@ sahneler:
       ekranda: "Ortada büyük sarı 3, altında ahtapot"
       hareket: "3 sayarak gelir, ahtapot süzülür, kamera yavaşça yaklaşır"
       gecis: "3 sıkışır, büyüyüp ekranı kaplar ve sahne 2'nin lacivertine dönüşür"
-    efektler:                 # hazır sesler: pop, vin, parilti, bum, tik, lazer
-      - {t: 0.3, ses: vin, seviye: 0.4}
+    efektler:                 # hazır sesler: pop, whoosh, sparkle, boom, tick, laser
+      - {t: 0.3, ses: whoosh, seviye: 0.4}
 ```
-3D (`uc`) ve piksel (`piksel`) sahneler aynı alanlarla yazılır. Diğer sahne türleri (`kart`, `harita`, `resim`, `cizgi`) ve tüm seçenekler `bos_sablon.yaml` dosyasında açıklamalı olarak var. En iyi sonuç `vektor` ile alınır.
+3D (`uc`) ve piksel (`piksel`) sahneler aynı alanlarla yazılır. Diğer sahne türleri (`kart`, `harita`, `resim`, `cizgi`) ve tüm seçenekler `template.yaml` dosyasında açıklamalı olarak var. En iyi sonuç `vektor` ile alınır.
 
-## Vektör sahne yazma (motor/vektor/vektor.js)
+## Vektör sahne yazma (engine/vector/vector.js)
 Her sahne ayrı bir HTML dosyasıdır:
 ```html
 <!doctype html><html><head><meta charset="utf-8"><title>01_kanca</title>
-<link rel="stylesheet" href="../../../motor/vektor/vektor.css"></head><body>
-<script src="../../../motor/vektor/vektor.js"></script>
+<link rel="stylesheet" href="../../../engine/vector/vector.css"></head><body>
+<script src="../../../engine/vector/vector.js"></script>
 <script>
 let baslik, kisi;
 V.sahne({
@@ -118,14 +118,14 @@ V.sahne({
 - Zaman: `V.p(t, t0, sure, "iki|giris|cikis")` (0→1 ilerleme), `V.ara(a, b, p)`, `V.kf(t, kareler)`. Filtreler: `url(#parilti)`, `url(#golge)`
 - Tarz: koyu arka plan, parlak renkler, sevimli yuvarlak şekiller, sürekli hafif hareket (`bekle`), yavaş kamera yaklaşması.
 
-## 3D sahne yazma (motor/uc/uc.js, Three.js)
+## 3D sahne yazma (engine/3d/3d.js, Three.js)
 `tur: uc`. Her sahne bir HTML dosyası, betik **modül** olarak yazılır:
 ```html
 <!doctype html><html><head><meta charset="utf-8"><title>01_ada</title>
-<link rel="stylesheet" href="../../../motor/vektor/vektor.css">
-<script type="importmap">{"imports":{"three":"../../../motor/uc/three.module.min.js","three/addons/":"../../../motor/uc/addons/"}}</script></head><body>
+<link rel="stylesheet" href="../../../engine/vector/vector.css">
+<script type="importmap">{"imports":{"three":"../../../engine/3d/three.module.min.js","three/addons/":"../../../engine/3d/addons/"}}</script></head><body>
 <script type="module">
-import { U, THREE } from "../../../motor/uc/uc.js";
+import { U, THREE } from "../../../engine/3d/3d.js";
 let ada, baslik;
 U.sahne({
   sure: 5, arka: ["#6fb4ff", "#cfe6ff"], isik: "gun", sis: 0.008, gorus: 30,   // isik: gun | gece | studyo
@@ -153,12 +153,12 @@ U.sahne({
 - `ciz(t)` saf fonksiyon olmalı (nesnelerin konumunu, dönüşünü t'den hesapla).
 - 3D çizim vektörden yavaştır (ekran kartıyla kare başına ~0,1-0,5 sn). Sahne başına 2-5 ana nesne ve tek ışık düzeni yeter; yüzlerce ayrıntılı nesne koyma.
 
-## Piksel sahne yazma (motor/piksel/piksel.js)
+## Piksel sahne yazma (engine/pixel/pixel.js)
 `tur: piksel`, projede `fps: 24`. Sahne 180 x 320 piksellik bir tuvale çizilir ve 6 kat büyütülür (her piksel net kare). Bulanıklık ve yarı saydamlık yoktur; solmalar damalı (dither) desenle olur. Her karede tuval temizlenir ve `ciz(t, c)` her şeyi baştan çizer (anlık çizim; `kur` genelde gerekmez).
 ```html
 <!doctype html><html><head><meta charset="utf-8"><title>01_koy</title>
-<link rel="stylesheet" href="../../../motor/piksel/piksel.css"></head><body>
-<script src="../../../motor/piksel/piksel.js"></script>
+<link rel="stylesheet" href="../../../engine/pixel/pixel.css"></head><body>
+<script src="../../../engine/pixel/pixel.js"></script>
 <script>
 PX.sahne({
   sure: 6, arka: ["#1a1b3a", "#3e2a5e"], giris: "siyah", cikis: "devir", devir: { x: 90, y: 150, renk: "sari", sure: 1 },
