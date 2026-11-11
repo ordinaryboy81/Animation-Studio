@@ -122,8 +122,9 @@ Needs `makensis` (NSIS 3), `zip`, `curl` and `unzip`. The results appear in `pak
   changed, and restarts the studio.
 - To publish an update: change the code, raise the version in `.surum`, add a note to
   `degisiklikler.json`, and push to `main`. Installed studios pick it up on their next start.
-- Installers on the Releases page are only needed for new installs. Build them with
-  `bash paket/build.sh` and attach them to a release named after the version.
+- Installers on the Releases page are only needed for new installs. They are built and published
+  automatically by `.github/workflows/release.yml` whenever `.surum` changes on `main`. To build
+  them by hand: `bash paket/build.sh` (results in `paket/cikti/`).
 - Forks can point the updater at their own repository with the environment variable
   `ANIMASYON_DEPO=owner/repo`.
 
