@@ -4,7 +4,16 @@ R="$(cd "$(dirname "$0")/../Resources/uygulama" && pwd)"
 H="$HOME/AnimationStudio"
 mkdir -p "$H"
 # Install or update the program files (projects, voices and settings are never touched)
-if [ "$(cat "$H/.surum" 2>/dev/null)" != "$(cat "$R/.surum")" ] || [ ! -f "$H/arayuz.py" ]; then
+# The studio updates itself from GitHub, so copy only when the app bundle is NEWER than the installed copy
+yeni_mi() {  # yeni_mi A B -> true if version A > version B (e.g. 1.10.0 > 1.9.2)
+  local IFS=.; local a=($1) b=($2) i
+  for i in 0 1 2; do
+    [ "${a[i]:-0}" -gt "${b[i]:-0}" ] 2>/dev/null && return 0
+    [ "${a[i]:-0}" -lt "${b[i]:-0}" ] 2>/dev/null && return 1
+  done; return 1
+}
+KURULU="$(cat "$H/.surum" 2>/dev/null | tr -d '[:space:]')"; PAKET="$(cat "$R/.surum" | tr -d '[:space:]')"
+if [ ! -f "$H/arayuz.py" ] || [ -z "$KURULU" ] || yeni_mi "$PAKET" "$KURULU"; then
   for f in "$R"/* "$R/.surum"; do
     n="$(basename "$f")"
     case "$n" in projeler|tts) continue ;; esac

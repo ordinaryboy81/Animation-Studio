@@ -10,6 +10,9 @@ It uses the following components, each under its own license.
 | IBM Plex Sans (interface font) | `fontlar/arayuz/` | SIL Open Font License 1.1 |
 | Nunito (font used inside videos and subtitles) | `motor/vektor/fontlar/` | SIL Open Font License 1.1 |
 | DejaVu fonts | `fontlar/` | Bitstream Vera / DejaVu license |
+| Pixelify Sans (pixel-art titles) | `motor/piksel/fontlar/` | SIL Open Font License 1.1 |
+| Tiny5 (small pixel-art text) | `motor/piksel/fontlar/` | SIL Open Font License 1.1 |
+| Three.js r170 and its GLTFLoader, RoomEnvironment, BufferGeometryUtils | `motor/uc/` | MIT |
 | World map outlines from Natural Earth | `veri/dunya.json` | Public domain |
 | Sound effects and background music | `motor/sesler/` | Generated for this project, MIT like the code |
 

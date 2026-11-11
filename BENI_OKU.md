@@ -21,6 +21,11 @@ Her sahnede çok dilli yazılar, altyazı, seslendirme ve geçişler (siyah/beya
    Sonra terminali kapatıp yeniden aç.
 3. Bu klasörü bir yere çıkar. Gerekli Python paketlerini `BASLAT.bat` ilk açılışta kendisi kurar.
 
+## Yenilikler 1.2: 3D, piksel art ve otomatik güncelleme
+
+- **Üç tarz**: stüdyoda **Yeni proje** derken tarzı seçersin: **Vektör** (2D, `tur: vektor`), **3D** (`tur: uc`, tarayıcıda Three.js ile yumuşak ışıklı "kil" görünümlü sahneler) ya da **Piksel art** (`tur: piksel`, 180x320 gerçek piksel tuvali, kısıtlı palet, piksel fontlar, yürüyen karakterler). Tarz `video.yaml` içindeki `stil:` alanında durur, Claude yeni sahneleri o tarzda yazar.
+- **Otomatik güncelleme**: stüdyo açılırken GitHub'daki sürüme bakar. Yeni sürüm varsa neler değiştiğini gösterip sorar; **Şimdi güncelle** dersen indirir, kurar ve kendini yeniden başlatır. Projeler, sesler ve ayarlar korunur. Elle bakmak için: Kılavuz → Güncellemeleri denetle.
+
 ## Yenilikler: Vektör animasyon ve yeni stüdyo
 
 - **Vektör sahneler** (`tur: vektor`) en akıcı ve keskin animasyon türüdür. Tarayıcıda SVG ile çizilir.

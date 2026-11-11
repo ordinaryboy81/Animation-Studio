@@ -128,3 +128,18 @@ sahneler:
 #  Vektör sahneleri stüdyoda video üretmeden canlı oynatılır.
 #  Videoya kaydederken bilgisayardaki Edge (yoksa Chrome) kullanılır.
 #  Metinler sahne dosyasının içinde {tr: ..., en: ..., pl: ...} olarak durur.
+
+# ============================================================
+#  3D SAHNESİ (Three.js) ve PİKSEL ART SAHNESİ
+# ============================================================
+#  - tur: uc                           # yumuşak ışıklı, gölgeli 3D (motor/uc/uc.js)
+#    baslik: Ada
+#    dosya: sahneler/01_ada.html
+#    sure: 5
+#  - tur: piksel                       # 180 x 320 piksel art, 6 kat büyütülür (motor/piksel/piksel.js)
+#    baslik: Köy
+#    dosya: sahneler/01_koy.html
+#    sure: 6
+#
+#  Projenin tarzı en üstte: stil: vektor | uc | piksel   (piksel projelerde fps: 24 önerilir)
+#  Bir videoda farklı türler art arda kullanılabilir; geçişler (devir) türler arasında da çalışır.

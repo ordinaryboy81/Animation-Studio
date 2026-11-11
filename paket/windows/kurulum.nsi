@@ -3,7 +3,9 @@ Unicode true
 ManifestDPIAware true
 !include "MUI2.nsh"
 !define AD "Animation Studio"
-!define SURUM "1.1.0"
+!ifndef SURUM
+  !define SURUM "0.0.0"  ; build.sh passes -DSURUM from the .surum file
+!endif
 !define ANAHTAR "Software\Microsoft\Windows\CurrentVersion\Uninstall\AnimationStudio"
 Name "${AD}"
 OutFile "..\cikti\Animation-Studio-Setup-${SURUM}-x64.exe"
@@ -11,7 +13,7 @@ InstallDir "$PROFILE\AnimationStudio"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
 BrandingText "${AD} ${SURUM}"
-VIProductVersion "1.1.0.0"
+VIProductVersion "${SURUM}.0"
 VIAddVersionKey "ProductName" "${AD}"
 VIAddVersionKey "FileDescription" "${AD} setup"
 VIAddVersionKey "FileVersion" "${SURUM}"

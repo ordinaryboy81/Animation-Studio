@@ -8,8 +8,13 @@ voice-over, translation, subtitles and the final video. Nothing is uploaded anyw
 
 ## What it does
 
-- **Animated scenes** written as small HTML files on top of a vector engine (characters, text
-  animation, icons, charts, scene-to-scene morph transitions). Vertical, wide and square formats.
+- **Three scene styles**, chosen when you create a project:
+  - **Vector** (2D): characters, text animation, icons, charts, scene-to-scene morph transitions.
+  - **3D**: soft, clay-like lit scenes with shadows, drawn in the browser with Three.js.
+    Free `.glb` models (Kenney, Quaternius, Poly Pizza) can be added.
+  - **Pixel art**: a real 180×320 pixel canvas scaled up 6×, with a limited palette, dithered
+    fades, pixel fonts (Turkish and Polish letters included) and animated sprites.
+- Vertical, wide and square formats.
 - **Voice-over on your computer** with Chatterbox: built-in voices, or your own voice from a
   20-second recording. The same voice can narrate in 20+ languages.
 - **Automatic checking** with Whisper: every generated line is listened to and compared with the
@@ -20,6 +25,8 @@ voice-over, translation, subtitles and the final video. Nothing is uploaded anyw
 - **Subtitles**: an `.srt` file for every video, and optional burned-in word-by-word subtitles.
 - **Audio mix**: music ducks under speech, and loudness is set to -14 LUFS.
 - **Interface in English and Turkish**, with a built-in guide.
+- **Updates itself**: when you open the studio it checks this repository. If a newer version is
+  there, it asks you, downloads it and restarts. Your projects, voices and settings are kept.
 
 ## Install
 
@@ -104,6 +111,21 @@ bash paket/build.sh
 ```
 
 Needs `makensis` (NSIS 3), `zip`, `curl` and `unzip`. The results appear in `paket/cikti/`.
+
+## Updates and releases
+
+- The studio compares its `.surum` file with the one on the `main` branch of this repository.
+  When `main` has a higher version, the studio offers to update; the notes shown come from
+  `degisiklikler.json`. You can also check by hand in **Guide → Check for updates**.
+- The update downloads the source of `main`, replaces the program files only (never `projeler/`,
+  voices, the Python environment or settings), reinstalls packages if `gereksinimler.txt`
+  changed, and restarts the studio.
+- To publish an update: change the code, raise the version in `.surum`, add a note to
+  `degisiklikler.json`, and push to `main`. Installed studios pick it up on their next start.
+- Installers on the Releases page are only needed for new installs. Build them with
+  `bash paket/build.sh` and attach them to a release named after the version.
+- Forks can point the updater at their own repository with the environment variable
+  `ANIMASYON_DEPO=owner/repo`.
 
 ## Things to know
 

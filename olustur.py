@@ -29,6 +29,10 @@ VARSAYILAN_TEMA = {
 }
 
 
+
+# HTML ile yazılan, tarayıcıda çizilen sahne türleri: vektör (SVG), 3D (Three.js), piksel art
+HTML_TURLER = ("vektor", "uc", "piksel")
+
 def ffmpeg_kontrol():
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
         sys.exit("HATA: ffmpeg bulunamadı. README'deki kurulum adımına bakın (Windows: winget install Gyan.FFmpeg).")
@@ -103,7 +107,7 @@ def sahne_olustur(is_):
     no = is_.get("kimlik", is_["no"])
     def ilerleme(i, n):
         print(f"ILERLEME {no} {i} {n}", flush=True)
-    if tanim.get("tur") == "vektor":
+    if tanim.get("tur") in HTML_TURLER:
         from motor import vektor_kayit
         url = vektor_kayit.sayfa_url(is_["taban"], os.path.join(klasor, tanim["dosya"]), dil, sonraki=is_.get("sonraki")) + f"&sure={sure}"
         vektor_kayit.kaydet(url, W, H, sure, fps, hedef, ilerleme, is_.get("bas", 0), is_.get("son"), is_.get("olcek", 1))
@@ -137,9 +141,10 @@ def parmak_izi(tanim, sure, W, H, ss, dil, klasor, tema, fps):
             yol = os.path.join(klasor, v)
             dosyalar.append(os.path.getmtime(yol) if os.path.exists(yol) else 0)
     topla(tanim)
-    if tanim.get("tur") == "vektor":
-        for f in ("vektor.js", "vektor.css"):
-            dosyalar.append(os.path.getmtime(os.path.join(KOK_DIZIN, "motor", "vektor", f)))
+    if tanim.get("tur") in HTML_TURLER:
+        motor = {"vektor": "vektor", "uc": "uc", "piksel": "piksel"}[tanim["tur"]]
+        for kok, _, fs in os.walk(os.path.join(KOK_DIZIN, "motor", motor)):
+            dosyalar += [(f, os.path.getmtime(os.path.join(kok, f))) for f in sorted(fs) if f.endswith((".js", ".css"))]
         sk = os.path.dirname(os.path.join(klasor, str(tanim.get("dosya", ""))))     # sahnelerin ortak dosyaları (_karakter.js, resimler)
         if os.path.isdir(sk):
             dosyalar += [(f, os.path.getmtime(os.path.join(sk, f))) for f in sorted(os.listdir(sk))
@@ -291,7 +296,7 @@ def sonraki_renkler(plan, klasor):
         r = None
         if i + 1 < len(plan):
             s = plan[i + 1]["tanim"]
-            r = vektor_kayit.arka_rengi(os.path.join(klasor, s["dosya"])) if s.get("tur") == "vektor" and s.get("dosya") else "000000"
+            r = vektor_kayit.arka_rengi(os.path.join(klasor, s["dosya"])) if s.get("tur") in HTML_TURLER and s.get("dosya") else "000000"
         renkler.append(r)
     return renkler
 
@@ -311,7 +316,7 @@ def storyboard(plan, klasor, dil, fmt, W, H, kalite, tema, fps, taban):
         kart = {"no": p["no"], "baslik": p["tanim"].get("baslik") or p["tanim"].get("tur", ""), "bas": round(p["bas"], 2),
                 "son": round(p["bas"] + sure, 2), "anlar": anlar, "kareler": [k[1] for k in kareler], "uyarilar": []}
         tur = p["tanim"].get("tur", "kart")
-        if tur == "vektor":
+        if tur in HTML_TURLER:
             dosya = os.path.join(klasor, p["tanim"].get("dosya", ""))
             if os.path.isfile(dosya):
                 url = vektor_kayit.sayfa_url(taban, dosya, dil, sonraki=renkler[i]) + f"&sure={sure}"
@@ -369,7 +374,7 @@ def video_olustur(proje, klasor, dil, fmt, args):
     toplam = sum(p["sure"] for p in plan)
 
     taban = None
-    if any(p["tanim"].get("tur") == "vektor" for p in plan) or args.storyboard:
+    if any(p["tanim"].get("tur") in HTML_TURLER for p in plan) or args.storyboard:
         from motor import vektor_kayit
         taban, _sunucu = vektor_kayit.sunucu_baslat()
 
@@ -381,7 +386,7 @@ def video_olustur(proje, klasor, dil, fmt, args):
     if args.kare is not None:
         for i, p in enumerate(plan):
             if p["bas"] <= args.kare < p["bas"] + p["sure"] or p is plan[-1]:
-                if p["tanim"].get("tur") == "vektor":
+                if p["tanim"].get("tur") in HTML_TURLER:
                     yol = os.path.join(klasor, "cikti", f"kare_{dil}_{fmt}_{args.kare:.2f}.png")
                     os.makedirs(os.path.dirname(yol), exist_ok=True)
                     url = vektor_kayit.sayfa_url(taban, os.path.join(klasor, p["tanim"]["dosya"]), dil, sonraki=renkler[i]) + f"&sure={p['sure']}"
@@ -425,15 +430,15 @@ def video_olustur(proje, klasor, dil, fmt, args):
     gorevler, birlesecek = [], []
     for i, _, _ in isler:
         n = kare(i)
-        adet = math.ceil(n / dilim) if i["tanim"].get("tur") == "vektor" else 1
+        adet = math.ceil(n / dilim) if i["tanim"].get("tur") in HTML_TURLER else 1
         if adet <= 1:
-            gorevler.append(dict(i, kimlik=str(i["no"]), olcek=olcek, _kare=n)); continue
+            gorevler.append(dict(i, kimlik=str(i["no"]), olcek=1 if i["tanim"].get("tur") == "piksel" else olcek, _kare=n)); continue
         parcalar = []
         for k in range(adet):
             a, b = n * k // adet, n * (k + 1) // adet
             ph = i["hedef"][:-4] + f".p{k + 1}.mp4"
             parcalar.append(ph)
-            gorevler.append(dict(i, hedef=ph, bas=a, son=b, kimlik=f"{i['no']}.{k + 1}", olcek=olcek, _kare=b - a))
+            gorevler.append(dict(i, hedef=ph, bas=a, son=b, kimlik=f"{i['no']}.{k + 1}", olcek=1 if i["tanim"].get("tur") == "piksel" else olcek, _kare=b - a))
         birlesecek.append((i["hedef"], parcalar))
     gorevler.sort(key=lambda g: -g["_kare"])      # uzun parçalar önce: çekirdekler boş beklemez
 

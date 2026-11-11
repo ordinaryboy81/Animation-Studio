@@ -22,7 +22,9 @@ def tarayici_ac(p):
     hatalar = []
     for kanal in ("msedge", "chrome", None):
         try:
-            return p.chromium.launch(channel=kanal) if kanal else p.chromium.launch()
+            # 3D sahneler WebGL ister: ekran kartı yoksa ya da engelliyse yazılımla çizilir
+            ek = ["--ignore-gpu-blocklist", "--enable-unsafe-swiftshader"]
+            return p.chromium.launch(channel=kanal, args=ek) if kanal else p.chromium.launch(args=ek)
         except Exception as e:
             hatalar.append(f"{kanal or 'chromium'}: {str(e).splitlines()[0]}")
     raise RuntimeError("Tarayıcı açılamadı. Edge veya Chrome yüklü olmalı. Ayrıntı: " + " | ".join(hatalar))

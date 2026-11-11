@@ -55,7 +55,7 @@ def ekran_metinleri(klasor, proje):
     """Vektör sahnelerdeki çok dilli yazılar: { tr: "...", en: "..." } biçimindeki nesneler."""
     dosyalar = []
     for s in proje.get("sahneler") or []:
-        if isinstance(s, dict) and s.get("tur") == "vektor" and s.get("dosya"):
+        if isinstance(s, dict) and s.get("tur") in ("vektor", "uc", "piksel") and s.get("dosya"):
             d = os.path.join(klasor, s["dosya"])
             if os.path.isfile(d) and d not in dosyalar:
                 dosyalar.append(d)

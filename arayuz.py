@@ -2,7 +2,7 @@
 Animasyon Stüdyosu — tarayıcıda açılan arayüz (sadece bu bilgisayardan erişilir).
 Çalıştırmak için BASLAT.bat dosyasına çift tıkla (ya da: python arayuz.py).
 """
-import json, mimetypes, os, re, shutil, signal, subprocess, sys, threading, time, webbrowser
+import json, mimetypes, os, re, shutil, signal, socket, subprocess, sys, threading, time, webbrowser
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, quote, unquote
 
@@ -10,6 +10,7 @@ import yaml
 
 import tts_yonetici as tts
 import ceviri
+import guncelleme
 
 KOK = os.path.dirname(os.path.abspath(__file__))
 
@@ -81,7 +82,7 @@ def ozet(metin, ad=None):
         sure = float(s.get("sure", 5))
         tur = s.get("tur", "kart")
         url = None
-        if tur == "vektor" and ad and s.get("dosya"):
+        if tur in ("vektor", "uc", "piksel") and ad and s.get("dosya"):
             url = "/k/projeler/" + quote(ad) + "/" + quote(s["dosya"].replace("\\", "/"))
         arka0 = None
         if url:
@@ -266,20 +267,21 @@ def metin_duzelt(ad, dil, no, yeni):
 
 BOS_PROJE = """# Yeni proje. Tüm seçenekler: stüdyo klasöründeki bos_sablon.yaml
 ad: {ad}
-diller: [tr, en]
+stil: {stil}            # sahnelerin tarzı: vektor | uc (3D) | piksel. Claude yeni sahneleri bu tarzda yazar.
+diller: [{diller}]
 format: dikey
-fps: 30
+fps: {fps}
 
 sahneler:
-  - tur: vektor
-    baslik: Başlangıç
+  - tur: {stil}
+    baslik: {baslik}
     dosya: sahneler/01_baslangic.html
     sure: 4
     anlatim:
-      tr: "Bu yeni bir proje."
-      en: "This is a new project."
+      {d1}: "{a1}"
 """
-BOS_SAHNE = """<!doctype html><html><head><meta charset="utf-8"><title>01_baslangic</title>
+BOS_SAHNE = {
+    "vektor": """<!doctype html><html><head><meta charset="utf-8"><title>01_baslangic</title>
 <link rel="stylesheet" href="../../../motor/vektor/vektor.css"></head><body>
 <script src="../../../motor/vektor/vektor.js"></script>
 <script>
@@ -297,7 +299,66 @@ V.sahne({
   },
 });
 </script></body></html>
-"""
+""",
+    "uc": """<!doctype html><html><head><meta charset="utf-8"><title>01_baslangic</title>
+<link rel="stylesheet" href="../../../motor/vektor/vektor.css">
+<script type="importmap">{"imports":{"three":"../../../motor/uc/three.module.min.js","three/addons/":"../../../motor/uc/addons/"}}</script></head><body>
+<script type="module">
+import { U, THREE } from "../../../motor/uc/uc.js";
+let ada, baslik, alt;
+U.sahne({
+  sure: 4, arka: ["#8ec5ff", "#fde2c8"], isik: "gun", sis: 0.012, gorus: 30, giris: "siyah", cikis: "siyah",
+  kur(s) {
+    s.sahne.add(U.zemin("#4aa3df", { boyut: 80 }));
+    ada = new THREE.Group(); s.sahne.add(ada);
+    const kara = U.silindir(2.6, 0.5, "#f1d9a0", { ust: 2.4 }); kara.position.y = 0.1; ada.add(kara);
+    const cim = U.silindir(2.3, 0.2, "#6cc06a", { ust: 2.2 }); cim.position.y = 0.42; ada.add(cim);
+    const ev = U.ev({ cati: "#e8695d" }); ev.position.set(-0.4, 0.52, 0.2); ada.add(ev);
+    [[1.1, -0.6], [0.9, 0.9], [-1.4, -0.7]].forEach(([x, z], i) => { const a = U.agac({ boy: 0.8, tohum: i }); a.position.set(x, 0.52, z); ada.add(a); });
+    baslik = U.yazi(s.ust, { metin: { tr: "Yeni proje", en: "New project" }, y: 260, boyut: 96 });
+    alt = U.yazi(s.ust, { metin: { tr: "Sahneleri Claude'a yazdır", en: "Ask Claude to write the scenes" }, y: 390, boyut: 50, renk: "#fff4d6" });
+  },
+  ciz(t, s) {
+    U.itme(t, { bas: [0, 6, 15], son: [2, 4, 11], hedef: [0, 0.8, 0] });
+    ada.rotation.y = t * 0.1;
+    baslik.anim(t, 0.3, "bulanik", 3.4); alt.anim(t, 0.8, "bulanik", 3.4);
+  },
+});
+</script></body></html>
+""",
+    "piksel": """<!doctype html><html><head><meta charset="utf-8"><title>01_baslangic</title>
+<link rel="stylesheet" href="../../../motor/piksel/piksel.css"></head><body>
+<script src="../../../motor/piksel/piksel.js"></script>
+<script>
+PX.sahne({
+  sure: 4, arka: ["#1a1b3a", "#3e2a5e"], giris: "siyah", cikis: "siyah",
+  ciz(t, c) {
+    c.gok(["#1a1b3a", "#283066", "#3e2a5e", "#7a4fb3"], { y1: 240 });
+    c.yildizlar(t, { n: 45, y1: 170 });
+    c.ay(146, 118, { r: 10 });
+    c.daglar({ y: 225, h: 60, renk: "#2b2452", golge: "#1f1a3c", kar: "#b8b4d8", tohum: 3, kayma: t * 2 });
+    c.agac(30, 262, { tur: "cam" }); c.agac(150, 262, {});
+    c.ev(90, 262, { cati: "kirmizi" });
+    c.zemin({ y: 262, renk: "#3a2a1e", ust: "#2f7a40", ust2: "#1f4c36" });
+    c.sprite("insan", 20 + t * 12, 262, { anim: "yuru" });
+    c.yazi({ tr: "Yeni proje", en: "New project" }, 90, 40, { boyut: 3, renk: "sari", t0: 0.3, hiz: 12 });
+    c.yazi({ tr: "Sahneleri Claude'a yazdır", en: "Ask Claude to write the scenes" }, 90, 74, { boyut: 1, t0: 1.2 });
+  },
+});
+</script></body></html>
+""",
+}
+
+
+def bos_proje_yaz(hedef, ad, stil, dil):
+    stil = stil if stil in BOS_SAHNE else "vektor"
+    en = dil == "en"
+    os.makedirs(os.path.join(hedef, "sahneler"))
+    yaml_metin = BOS_PROJE.format(ad=ad, stil=stil, diller="en, tr" if en else "tr, en", fps=24 if stil == "piksel" else 30,
+                                  baslik="Start" if en else "Başlangıç", d1="en" if en else "tr",
+                                  a1="This is a new project." if en else "Bu yeni bir proje.")
+    open(os.path.join(hedef, "video.yaml"), "w", encoding="utf-8", newline="\n").write(yaml_metin)
+    open(os.path.join(hedef, "sahneler", "01_baslangic.html"), "w", encoding="utf-8", newline="\n").write(BOS_SAHNE[stil])
 
 
 def storyboard_oku(ad):
@@ -553,6 +614,10 @@ class Isleyici(BaseHTTPRequestHandler):
                 return self.gonder(200, {"ciktilar": ciktilar(q["ad"])})
             if u.path == "/api/durum":
                 return self.gonder(200, IS)
+            if u.path == "/api/guncelleme":      # GitHub'da yeni sürüm var mı?
+                return self.gonder(200, guncelleme.kontrol(q.get("zorla") == "1"))
+            if u.path == "/api/guncelleme/durum":
+                return self.gonder(200, dict(guncelleme.IS, surum=guncelleme.yerel_surum()))
             if u.path == "/api/tts/durum":     # Chatterbox durumu (kontrol=1: güncellemeye bak, 2: hemen bak)
                 return self.gonder(200, tts.durum(int(q.get("kontrol", 0)), ses_suresi,
                                                  proje_klasoru(q["ad"]) if q.get("ad") else None, q.get("dil")))
@@ -637,17 +702,33 @@ class Isleyici(BaseHTTPRequestHandler):
                 hedef = proje_klasoru(ad)
                 if os.path.exists(hedef):
                     return self.gonder(200, {"hata": "Bu isimde bir proje zaten var."})
-                kaynak = v.get("kaynak") if v.get("kaynak") in projeler() else (projeler() or [None])[0]
-                if not kaynak:      # ilk proje: tek sahnelik boş bir başlangıç
-                    os.makedirs(os.path.join(hedef, "sahneler"))
-                    open(os.path.join(hedef, "video.yaml"), "w", encoding="utf-8", newline="\n").write((BOS_PROJE if v.get("dil") != "en" else BOS_PROJE.replace("[tr, en]", "[en, tr]").replace("Başlangıç", "Start")).replace("{ad}", ad))
-                    open(os.path.join(hedef, "sahneler", "01_baslangic.html"), "w", encoding="utf-8", newline="\n").write(BOS_SAHNE)
+                if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,60}", ad):
+                    return self.gonder(200, {"hata": "Proje adında yalnızca küçük harf, rakam ve tire olsun (örn: piri-reis)."})
+                kaynak = v.get("kaynak") if v.get("kopya") and v.get("kaynak") in projeler() else None
+                if not kaynak:      # tek sahnelik boş bir başlangıç, seçilen tarzda
+                    bos_proje_yaz(hedef, ad, v.get("stil", "vektor"), v.get("dil"))
                     return self.gonder(200, {"ad": ad})
                 shutil.copytree(proje_klasoru(kaynak), hedef, ignore=shutil.ignore_patterns("cikti", "ses"))
                 yol = os.path.join(hedef, "video.yaml")
                 metin = re.sub(r"(?m)^ad:.*$", f"ad: {ad}", open(yol, encoding="utf-8").read(), count=1)
                 open(yol, "w", encoding="utf-8", newline="\n").write(metin)
                 return self.gonder(200, {"ad": ad})
+            if u.path == "/api/guncelleme":     # yeni sürümü indir, kur, stüdyoyu yeniden başlat
+                mesgul = "Önce süren video işinin bitmesini bekle." if IS["calisiyor"] else \
+                    "Önce süren seslendirme işinin bitmesini bekle." if tts.IS.get("calisiyor") else None
+                try:
+                    guncelleme.baslat(mesgul)
+                except ValueError as e:
+                    return self.gonder(200, {"hata": str(e)})
+
+                def bekle():
+                    while guncelleme.IS["calisiyor"]:
+                        time.sleep(0.3)
+                    if guncelleme.IS["bitti"]:
+                        time.sleep(2.0)          # arayüz "kuruldu" mesajını görsün
+                        guncelleme.yeniden_baslat(kapat)
+                threading.Thread(target=bekle, daemon=True).start()
+                return self.gonder(200, {"tamam": True})
             if u.path == "/api/kapat":     # stüdyoyu kapat (Mac'te pencere olmadan çalışırken)
                 durdur(); tts.durdur()
                 threading.Thread(target=kapat, daemon=True).start()
@@ -769,6 +850,11 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 #mikSure{font-weight:600;font-size:24px;line-height:1;font-variant-numeric:tabular-nums;min-width:90px}
 .kirmiziNokta{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--coral);animation:yanip 1s infinite}@keyframes yanip{50%{opacity:.25}}
 #kayit{display:none;background:#111213;border-radius:var(--r);padding:8px;font:11.5px/1.45 Consolas,"Cascadia Mono",monospace;color:#b3b1ab;max-height:140px;overflow:auto;white-space:pre-wrap;margin-top:6px}
+.stiller{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stil{display:flex;flex-direction:column;gap:6px;padding:8px;border:1px solid var(--line);border-radius:var(--r);cursor:pointer;background:var(--p2)}
+.stil:hover{border-color:#4a4e53}.stil:has(input:checked){border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
+.stil input{display:none}.stil img{width:100%;aspect-ratio:9/12;object-fit:cover;object-position:center 30%;border-radius:3px;background:#000;image-rendering:auto}
+.stil b{font-size:13.5px}.stil .ipucu{font-size:12px;line-height:1.4}
 .kilavuz{width:min(760px,92vw);max-height:80vh;overflow:auto;padding-right:10px;font-size:14px;line-height:1.6}
 .kilavuz h2{font-size:20px;font-weight:600;margin:0 0 4px}.kilavuz h4{font-size:15px;font-weight:600;margin:22px 0 6px;display:flex;gap:10px;align-items:baseline}
 .kilavuz h4 span{color:var(--gold);font-variant-numeric:tabular-nums;min-width:16px}
@@ -837,7 +923,14 @@ const $=s=>document.querySelector(s);
 // Arayüz Türkçe yazılır; İngilizce seçiliyken ekrandaki yazılar aşağıdaki sözlükle çevrilir.
 let DIL=localStorage.getItem('dil')||((navigator.language||'tr').toLowerCase().startsWith('tr')?'tr':'en');
 const EN={
-"Animasyon Stüdyosu":"Animation Studio","Önce bir proje aç ya da Yeni proje ile oluştur.":"Open a project first, or create one with New project.","Henüz proje yok. Kılavuz, Claude ile ilk videonun nasıl hazırlanacağını anlatır. Boş bir projeyle başlamak için Yeni proje.":"No projects yet. The Guide explains how to prepare your first video with Claude. To start from an empty project, use New project.","Yeni proje":"New project","güncelleme":"update","Proje klasörü":"Project folder","Kılavuz":"Guide","Kapat":"Close","Çıkış":"Quit","Seslendirme":"Voice-over","Senaryo":"Script","Sahneler":"Scenes",
+"Animasyon Stüdyosu":"Animation Studio","İndiriliyor…":"Downloading…","Dosyalar açılıyor…":"Unpacking…","Yeni dosyalar yerleştiriliyor…":"Installing the new files…","Gerekli paketler güncelleniyor…":"Updating the required packages…",
+"Bu klasör git ile yönetiliyor; güncellemek için git pull kullan.":"This folder is managed with git; use git pull to update.","Önce süren video işinin bitmesini bekle.":"Wait for the running video job to finish first.","Önce süren seslendirme işinin bitmesini bekle.":"Wait for the running voice-over job to finish first.","Güncelleme zaten sürüyor.":"An update is already running.","Piksel":"Pixel","Piksel art":"Pixel art","Tarz: Claude bu projenin sahnelerini seçtiğin tarzda yazar.":"Style: Claude writes this project's scenes in the style you choose.",
+"Proje adı (küçük harf, rakam ve tire; örn: piri-reis)":"Project name (lowercase letters, numbers and dashes, for example: piri-reis)","Oluştur":"Create",
+"Düz renkli, yumuşak hareketli 2D çizimler. Açıklayıcı videolar için en esnek tarz.":"Flat-colour 2D drawings with smooth motion. The most flexible style for explainers.",
+"Yumuşak ışıklı, gölgeli 3D sahneler: gezegenler, nesneler, maketler. Çizimi biraz daha uzun sürer.":"Softly lit 3D scenes with shadows: planets, objects, miniatures. Takes a little longer to render.",
+"Eski oyunlar gibi piksel piksel çizilmiş sahneler ve karakterler. Hikâye ve tarih anlatımına uygun.":"Scenes and characters drawn pixel by pixel like classic games. Suits stories and history.",
+"Tarz seçimi yerine şu anki projenin sahneleri ve metinleri kopyalanır (sesler ve videolar hariç).":"Copies the current project's scenes and text instead of using a style (audio and videos are not copied).",
+"Proje adında yalnızca küçük harf, rakam ve tire olsun (örn: piri-reis).":"Use only lowercase letters, numbers and dashes in the project name (for example: piri-reis).","Önce bir proje aç ya da Yeni proje ile oluştur.":"Open a project first, or create one with New project.","Henüz proje yok. Kılavuz, Claude ile ilk videonun nasıl hazırlanacağını anlatır. Boş bir projeyle başlamak için Yeni proje.":"No projects yet. The Guide explains how to prepare your first video with Claude. To start from an empty project, use New project.","Yeni proje":"New project","güncelleme":"update","Proje klasörü":"Project folder","Kılavuz":"Guide","Kapat":"Close","Çıkış":"Quit","Seslendirme":"Voice-over","Senaryo":"Script","Sahneler":"Scenes",
 "Kareyi kaydet":"Save frame","Ses açık":"Sound on","Ses kapalı":"Sound off","Video oluştur":"Make video","Diller":"Languages","Kalite":"Quality","Yüksek":"High","Hızlı taslak":"Quick draft",
 "Dikey 9:16":"Vertical 9:16","Yatay 16:9":"Wide 16:9","Kare 1:1":"Square 1:1","Arka müzik":"Background music","Düzey":"Level","Müzik yok":"No music",
 "Altyazıyı videoya göm":"Burn subtitles into the video","Konuşulan kelime sarı yanar. Whisper kontrolünden geçmiş seslerden çıkar; .srt dosyası her zaman yazılır.":"The spoken word lights up yellow. Built from audio that passed the Whisper check; an .srt file is always written.",
@@ -901,7 +994,7 @@ const EN={
 const EN_K=[
 [/^(\d+(?:\.\d+)?) \/ (\d+(?:\.\d+)?) sn$/,"$1 / $2 s"],[/^(\d+(?:\.\d+)?)–(\d+(?:\.\d+)?) sn(?: · ses ×([\d.]+))?$/,(m,a,b,o)=>`${a}–${b} s`+(o?` · audio ×${o}`:'')],[/^(\d+(?:\.\d+)?) sn$/,"$1 s"],
 [/^(\d+) kelime$/,(m,n)=>n+(n==='1'?' word':' words')],[/^\/ en fazla ~(\d+)$/,"/ about $1 at most"],[/^sahne (\d+(?:\.\d+)?) sn ·$/,"scene $1 s ·"],[/^· makine çevirisi$/,"· machine translation"],
-[/^video (\d+(?:\.\d+)?) sn · en fazla ~(\d+) kelime$/,"video $1 s · about $2 words at most"],[/^Sahne (\d+)$/,"Scene $1"],[/^(.*) \(proje\)$/,"$1 (project)"],
+[/^video (\d+(?:\.\d+)?) sn · en fazla ~(\d+) kelime$/,"video $1 s · about $2 words at most"],[/^Sahne (\d+)$/,"Scene $1"],[/^(.*) \(proje\)$/,"$1 (project)"],[/^(.*) projesini kopyala$/,"Copy the project $1"],
 [/^✓ Ses var · ([\d.]+) sn$/,"✓ Audio · $1 s"],[/^Ses sahneden uzun: ×([\d.]+) hızlandırıldı, videoda bu sahne ([\d.]+) sn olur\.$/,"Audio is longer than the scene: sped up ×$1, and the scene becomes $2 s in the video."],[/^Ses sahneden uzun: videoda bu sahne ([\d.]+) sn olur\.$/,"Audio is longer than the scene: the scene becomes $1 s in the video."],[/^Sahneye sığdırıldı \(ses ×([\d.]+)\)$/,"Fitted to the scene (audio ×$1)"],
 [/^(✓|⚠) Whisper %(\d+)(?: · eksik: (.*))?$/,(m,i,y,e)=>`${i} Whisper ${y}%`+(e?` · missing: ${e}`:'')],[/^Eksikleri üret \((\d+)\)$/,"Generate missing ($1)"],
 [/^Kaydedildi: (.*)$/,"Saved: $1"],[/^(\d+) metin çevriliyor…$/,"Translating $1 texts…"],[/^Proje oluşturuldu: ?(.*)$/,"Project created: $1"],[/^Ses yüklendi ✓ \((.*)$/,"Audio uploaded ✓ ($1"],[/^Önceki sürüme dönüldü \((.*)$/,"Back on the previous version ($1"],
@@ -917,7 +1010,7 @@ const EN_K=[
 [/^Chatterbox (güncellendi|kuruldu) ✓ \(sürüm (.*)\)$/,(m,a,b)=>`Chatterbox ${a==='kuruldu'?'installed':'updated'} ✓ (version ${b})`],[/^Şablon hazırlanıyor: (.*)$/,"Preparing preset: $1"],[/^GitHub'a ulaşılamadı \((.*)\)$/,"Could not reach GitHub ($1)"],
 [/^Senaryo dosyasında yazım hatası(.*)\. Genelde girinti \(boşluk\) ya da eksik tırnak\/parantez sebep olur\.$/,"Syntax error in the script file$1. The usual cause is indentation or a missing quote or bracket."],
 [/^Mikrofona erişilemedi\..*$/,"Could not access the microphone. Allow it from the microphone icon in the browser's address bar (on a Mac also under System Settings → Privacy & Security → Microphone), then open this again."],
-[/^%(\d+) · (.*)$/,(m,y,a)=>`${y}% · ${cev(a)}`],[/^sahne (\d+)$/,"scene $1"],[/^Sahne (\d+): (.*)$/,"Scene $1: $2"],
+[/^Stüdyo güncel ✓ \(sürüm (.*)\)$/,"The studio is up to date ✓ (version $1)"],[/^Sürüm (.*) kuruldu\. Stüdyo yeniden başlatılıyor…$/,"Version $1 installed. Restarting the studio…"],[/^Güncelleme yapılamadı: (.*)$/,"The update failed: $1"],[/^Güncelleme denetlenemedi \((.*)\)\.$/,"Could not check for updates ($1)."],[/^%(\d+) · (.*)$/,(m,y,a)=>`${y}% · ${cev(a)}`],[/^sahne (\d+)$/,"scene $1"],[/^Sahne (\d+): (.*)$/,"Scene $1: $2"],
 ];
 function cev(m){ if(DIL==='tr'||m==null)return m; const ham=String(m), k=ham.trim(); if(!k)return m;
  let y=EN[k]; if(y===undefined){const d=k.replace(/[ \t\r]*\n[ \t]*/g,' ').replace(/ {2,}/g,' '); y=EN[d]}
@@ -942,25 +1035,50 @@ const KILAVUZ={
 tr:{baslik:"Kılavuz",giris:"Animasyon Stüdyosu, kısa animasyonlu videoları bilgisayarında üretir. Sahneleri Claude yazar; seslendirme, çeviri, altyazı ve video bu stüdyoda yapılır.",kopya:"Kopyala",kopyalandi:"Kopyalandı",klasor:"Stüdyo klasörünü aç",kapat:"Kapat",
 adimlar:[
 ["Claude'u stüdyo klasörüne bağla",`<p>Animasyonları Claude yazar, bu yüzden Claude'un stüdyo klasörünü görmesi gerekir.</p><ul><li>Bilgisayarına Claude masaüstü uygulamasını kur ve hesabınla gir.</li><li>Yeni bir sohbet aç ve stüdyo klasörünü sohbete bağla. Klasörün yerini görmek için aşağıdaki düğmeyi kullan.</li><li>Claude klasördeki <kbd>CLAUDE.md</kbd> dosyasını okur; sahnelerin nasıl yazılacağı orada anlatılır.</li></ul>`],
-["Konuyu söyle, storyboard'u onayla",`<p>Claude'a ne hakkında video istediğini yaz. Önce numaralı bir storyboard (sahne planı) önerir; beğenince sahneleri yazar ve projeyi <kbd>projeler</kbd> klasörüne koyar.</p><div class="ornek"><span>Bu klasördeki animasyon stüdyosu için "Ahtapotların neden üç kalbi var?" konulu 40 saniyelik dikey bir video hazırla. Önce storyboard öner.</span></div><p>Düzeltme isterken sahne numarasıyla söyle: "3. sahnede yazı çok küçük", "4'ten 5'e geçiş sert".</p>`],
+["Konuyu söyle, storyboard'u onayla",`<p>Claude'a ne hakkında video istediğini yaz. Önce numaralı bir storyboard (sahne planı) önerir; beğenince sahneleri yazar ve projeyi <kbd>projeler</kbd> klasörüne koyar.</p><p>Yeni projeyi stüdyoda <b>Yeni proje</b> ile açarsan tarzını seçersin: <b>Vektör</b> (2D çizim), <b>3D</b> ya da <b>Piksel art</b>. Claude sahneleri o tarzda yazar.</p><div class="ornek"><span>Bu klasördeki animasyon stüdyosu için "Ahtapotların neden üç kalbi var?" konulu 40 saniyelik dikey bir video hazırla. Önce storyboard öner.</span></div><p>Düzeltme isterken sahne numarasıyla söyle: "3. sahnede yazı çok küçük", "4'ten 5'e geçiş sert".</p>`],
 ["Projeyi aç ve izle",`<ul><li>Sol üstteki listeden projeyi seç. Ortada canlı önizleme oynar.</li><li>Soldaki sahneye tıklayınca önizleme oraya atlar.</li><li><b>Storyboard</b>, video çizmeden her sahneden iki kare çıkarır. Claude'a geri bildirim vermenin en hızlı yolu budur.</li><li>Kısayollar: <kbd>Boşluk</kbd> oynat/durdur, <kbd>←</kbd> <kbd>→</kbd> 1 saniye, <kbd>↑</kbd> <kbd>↓</kbd> sahne.</li></ul>`],
 ["Seslendir",`<p><b>Seslendirme</b> penceresinde her sahnenin metni ve sesi durur.</p><ul><li>İlk seferde <b>Chatterbox'u kur</b> (yaklaşık 10 GB, bir kez).</li><li><b>Ses ayarları</b>'ndan bir ses seç ya da <b>Mikrofonla kaydet</b> ile kendi sesini ekle (15-25 saniye yeter).</li><li><b>Eksikleri üret</b> bütün sahneleri seslendirir. Whisper her sesi dinler; atlanan kelime varsa uyarır.</li><li>Metni kutuda düzeltebilirsin. Değişen sahne işaretlenir, <b>Eksikleri üret</b> onu yeniler.</li><li>Ses sahneden uzunsa <b>Sığdır</b> seçimi sesi biraz hızlandırır ya da sahneyi uzatır.</li><li>Konuşma hızlı ya da yavaş geliyorsa Ses ayarları'ndaki <b>Konuşma hızı</b> ve <b>duraklama</b> ile ayarla.</li></ul>`],
 ["Başka dillere çevir",`<p>Seslendirme penceresindeki <b>Çevir</b>, metinleri ve ekrandaki yazıları bilgisayarında çevirir (ilk seferde yaklaşık 8 GB model iner). Çeviriyi okuyup düzelt, sonra o dilde <b>Eksikleri üret</b>. Aynı ses bütün dillerde konuşur.</p>`],
 ["Videoyu oluştur",`<ul><li>Sağdaki panelde dilleri, formatı ve müziği seç.</li><li><b>Altyazıyı videoya göm</b> konuşulan kelimeyi vurgulayan altyazı ekler.</li><li><b>Video oluştur</b>'a bas. Eksik sesler varsa önce onlar üretilir.</li><li>Biten videolar aşağıda listelenir; dosyalar projenin <kbd>cikti</kbd> klasöründedir. Yanında YouTube için bir <kbd>.srt</kbd> altyazı dosyası da olur.</li><li>Denemeler için <b>Hızlı taslak</b>, yayın için <b>Yüksek</b> kaliteyi kullan.</li></ul>`],
-["Kapatmak ve sorun çözmek",`<ul><li>Stüdyo arka planda çalışır. Tamamen kapatmak için sağ üstteki <b>Çıkış</b>'a bas.</li><li>Bir iş takılırsa ilgili paneldeki <b>Kayıtlar</b>'a bak.</li><li>Videoda eski görüntü kalırsa projeyi yeniden seç ve videoyu tekrar oluştur.</li><li>Arayüz dilini sağ üstteki <b>TR / EN</b> düğmesinden değiştirirsin.</li></ul>`]]},
+["Kapatmak ve sorun çözmek",`<ul><li>Stüdyo arka planda çalışır. Tamamen kapatmak için sağ üstteki <b>Çıkış</b>'a bas.</li><li>Bir iş takılırsa ilgili paneldeki <b>Kayıtlar</b>'a bak.</li><li>Videoda eski görüntü kalırsa projeyi yeniden seç ve videoyu tekrar oluştur.</li><li>Arayüz dilini sağ üstteki <b>TR / EN</b> düğmesinden değiştirirsin.</li><li>Stüdyo açılırken yeni sürüm olup olmadığına bakar; varsa sorar, <b>Şimdi güncelle</b> dersen kendini günceller ve yeniden açılır. Projelerin ve seslerin korunur.</li></ul>`]]},
 en:{baslik:"Guide",giris:"Animation Studio makes short animated videos on your computer. Claude writes the scenes; voice-over, translation, subtitles and the final video are made here in the studio.",kopya:"Copy",kopyalandi:"Copied",klasor:"Open the studio folder",kapat:"Close",
 adimlar:[
 ["Connect Claude to the studio folder",`<p>Claude writes the animations, so it needs to see the studio folder.</p><ul><li>Install the Claude desktop app on your computer and sign in.</li><li>Start a new chat and connect the studio folder to it. Use the button below to find where the folder is.</li><li>Claude reads the <kbd>CLAUDE.md</kbd> file in the folder, which explains how scenes are written. (That file is in Turkish; Claude reads it fine.)</li></ul>`],
-["Give the topic, approve the storyboard",`<p>Tell Claude what the video is about. It first proposes a numbered storyboard; once you are happy it writes the scenes and puts the project in the <kbd>projeler</kbd> folder.</p><div class="ornek"><span>Using the animation studio in this folder, make a 40-second vertical video on "Why do octopuses have three hearts?". Write the narration in English. Propose a storyboard first.</span></div><p>When asking for changes, refer to scenes by number: "the text in scene 3 is too small", "the cut from 4 to 5 is abrupt".</p>`],
+["Give the topic, approve the storyboard",`<p>Tell Claude what the video is about. It first proposes a numbered storyboard; once you are happy it writes the scenes and puts the project in the <kbd>projeler</kbd> folder.</p><p>If you create the project yourself with <b>New project</b>, you pick its style: <b>Vector</b> (2D drawing), <b>3D</b> or <b>Pixel art</b>. Claude writes the scenes in that style.</p><div class="ornek"><span>Using the animation studio in this folder, make a 40-second vertical video on "Why do octopuses have three hearts?". Write the narration in English. Propose a storyboard first.</span></div><p>When asking for changes, refer to scenes by number: "the text in scene 3 is too small", "the cut from 4 to 5 is abrupt".</p>`],
 ["Open the project and watch it",`<ul><li>Pick the project from the list at the top left. A live preview plays in the middle.</li><li>Click a scene on the left to jump to it.</li><li><b>Storyboard</b> renders two frames per scene without making the video. It is the quickest way to give Claude feedback.</li><li>Shortcuts: <kbd>Space</kbd> play/pause, <kbd>←</kbd> <kbd>→</kbd> one second, <kbd>↑</kbd> <kbd>↓</kbd> scene.</li></ul>`],
 ["Add the voice-over",`<p>The <b>Voice-over</b> window holds the text and audio of every scene.</p><ul><li>The first time, press <b>Install Chatterbox</b> (about 10 GB, once).</li><li>Pick a voice under <b>Voice settings</b>, or add your own with <b>Record with microphone</b> (15–25 seconds is enough).</li><li><b>Generate missing</b> voices every scene. Whisper listens to each one and warns you if a word was skipped.</li><li>You can edit the text in its box. A changed scene is flagged, and <b>Generate missing</b> redoes it.</li><li>If the audio is longer than its scene, <b>Fit</b> speeds it up slightly or lengthens the scene.</li><li>If the speech feels fast or slow, adjust <b>Speaking speed</b> and the <b>pause</b> in Voice settings.</li></ul>`],
 ["Translate into other languages",`<p><b>Translate</b> in the Voice-over window translates the lines and the on-screen text on your computer (the first run downloads a model of about 8 GB). Read the translation and correct it, then press <b>Generate missing</b> in that language. The same voice speaks every language.</p>`],
 ["Make the video",`<ul><li>Choose languages, format and music in the panel on the right.</li><li><b>Burn subtitles into the video</b> adds subtitles that highlight the spoken word.</li><li>Press <b>Make video</b>. Missing audio is generated first.</li><li>Finished videos are listed below; the files are in the project's <kbd>cikti</kbd> folder, with an <kbd>.srt</kbd> subtitle file for YouTube next to them.</li><li>Use <b>Quick draft</b> for tests and <b>High</b> quality for publishing.</li></ul>`],
-["Quitting and fixing problems",`<ul><li>The studio runs in the background. To close it completely, press <b>Quit</b> at the top right.</li><li>If a job gets stuck, open <b>Logs</b> in that panel.</li><li>If the video shows an old picture, pick the project again and make the video again.</li><li>Change the interface language with the <b>TR / EN</b> switch at the top right.</li></ul>`]]}};
+["Quitting and fixing problems",`<ul><li>The studio runs in the background. To close it completely, press <b>Quit</b> at the top right.</li><li>If a job gets stuck, open <b>Logs</b> in that panel.</li><li>If the video shows an old picture, pick the project again and make the video again.</li><li>Change the interface language with the <b>TR / EN</b> switch at the top right.</li><li>When it opens, the studio checks for a new version. If there is one it asks; press <b>Update now</b> and it updates itself and restarts. Your projects and voices are kept.</li></ul>`]]}};
+// ---------------- güncelleme ----------------
+let GUN=null;
+async function guncellemeDenetle(zorla){ const d=await api('/api/guncelleme'+(zorla?'?zorla=1':'')); GUN=d;
+ if(zorla){ if(d.hata)return bildir(d.hata,1); if(d.mod==='git')return bildir(DIL==='tr'?'Bu klasör git ile yönetiliyor; güncellemek için git pull kullan.':'This folder is a git checkout; use git pull to update.'); if(!d.yeni)return bildir((DIL==='tr'?'Stüdyo güncel ✓ (sürüm ':'The studio is up to date ✓ (version ')+(d.surum||'?')+')') }
+ if(d.yeni&&(zorla||sessionStorage.getItem('gunAtla')!==d.son))guncellemePenceresi(d) }
+function guncellemePenceresi(d){ ANL_ACIK=false;
+ const notlar=(d.notlar||[]).map(n=>`<div style="margin-top:10px"><b>${kac(n.surum)}</b>${n.tarih?` <span class="ipucu">${kac(n.tarih)}</span>`:''}<ul style="margin:4px 0 0;padding-left:20px">${(n[DIL]||n.tr||n.en||[]).map(x=>`<li>${kac(x)}</li>`).join('')}</ul></div>`).join('');
+ $('#perdeIc').innerHTML=`<div class="ham" style="width:min(560px,90vw);display:flex;flex-direction:column;gap:10px">
+  <h3 style="margin:0;font-size:16px">${DIL==='tr'?'Yeni sürüm hazır: '+kac(d.son):'A new version is ready: '+kac(d.son)}</h3>
+  <div class="ipucu">${DIL==='tr'?'Şu an kullandığın: '+kac(d.surum)+'. Projelerin, seslerin ve ayarların korunur; yalnızca programın kendisi güncellenir.':'You are on '+kac(d.surum)+'. Your projects, voices and settings are kept; only the program itself is updated.'}</div>
+  <div style="max-height:46vh;overflow:auto;font-size:13.5px;line-height:1.5">${notlar}</div>
+  <div id="gunDurum" class="ipucu"></div>
+  <div style="display:flex;gap:8px"><span class="bosluk"></span><button class="btn" id="gunSonra" onclick="sessionStorage.setItem('gunAtla','${kac(d.son)}');perdeKapat()">${DIL==='tr'?'Sonra':'Later'}</button>
+  <button class="btn ana" id="gunBtn" onclick="guncelle()">${DIL==='tr'?'Şimdi güncelle':'Update now'}</button></div></div>`;
+ $('#perde').style.display='flex' }
+async function guncelle(){ const o=await api('/api/guncelleme',{}); if(o.hata)return bildir(o.hata,1);
+ $('#gunBtn').disabled=true; $('#gunSonra').disabled=true; const yaz=m=>{const e=$('#gunDurum'); if(e)e.textContent=m};
+ let bitti=false, eski=GUN&&GUN.surum;
+ while(true){ await new Promise(r=>setTimeout(r,800));
+  let d; try{ d=await (await fetch(bitti?'/api/guncelleme/durum?yeni=1':'/api/guncelleme/durum')).json() }catch(e){ yaz(DIL==='tr'?'Stüdyo yeniden başlatılıyor…':'Restarting the studio…'); continue }
+  if(d.hata){ yaz(cev(d.hata)); $('#gunBtn').disabled=false; $('#gunSonra').disabled=false; return }
+  if(d.bitti)bitti=true;
+  if(bitti&&d.surum&&d.surum!==eski&&!d.calisiyor&&!d.bitti){ location.reload(); return }   // yeni süreç cevap veriyor
+  yaz(cev(d.asama)) } }
 function kilavuz(){ const k=KILAVUZ[DIL]; ANL_ACIK=false;
  $('#perdeIc').innerHTML=`<div class="kilavuz ham"><h2>${k.baslik}</h2><p>${k.giris}</p>`+
   k.adimlar.map(([b,g],i)=>`<h4><span>${i+1}</span>${b}</h4><div style="padding-left:26px">${g}</div>`).join('')+`</div>
-  <div class="ham" style="display:flex;gap:8px"><button class="btn" onclick="api('/api/ac',{ad:'',alt:'..'})">${k.klasor}</button><span class="bosluk"></span><button class="btn ana" onclick="perdeKapat()">${k.kapat}</button></div>`;
+  <div class="ham" style="display:flex;gap:8px;align-items:center"><button class="btn" onclick="api('/api/ac',{ad:'',alt:'..'})">${k.klasor}</button>
+  ${GUN&&GUN.surum?`<span class="ipucu">${DIL==='tr'?'Sürüm':'Version'} ${kac(GUN.surum)}</span>${GUN.mod==='acik'?`<button class="btn duz kucuk" onclick="guncellemeDenetle(true)">${DIL==='tr'?'Güncellemeleri denetle':'Check for updates'}</button>`:''}`:''}<span class="bosluk"></span><button class="btn ana" onclick="perdeKapat()">${k.kapat}</button></div>`;
  document.querySelectorAll('.kilavuz .ornek').forEach(e=>{const b=document.createElement('button'); b.className='btn kucuk'; b.textContent=k.kopya;
   b.onclick=()=>navigator.clipboard.writeText(e.querySelector('span').textContent).then(()=>{b.textContent=k.kopyalandi}); e.appendChild(b)});
  $('#perde').style.display='flex'; localStorage.setItem('kilavuzGoruldu','1') }
@@ -1008,8 +1126,8 @@ async function projeAc(ad){ if(!ad)return; durdurOyna(); AD=ad; localStorage.set
  P=await api('/api/proje?ad='+encodeURIComponent(ad)); if(P.hata){bildir(P.hata,1);return}
  FORMAT=P.format||'dikey'; ANL=P.anlatim_dosyalar||{}; arayuzKur(); T=0; ciz(true)}
 function arayuzKur(){
- const renk={vektor:'#a79be0',cizgi:'#62b6a8',harita:'#6f9fdc',resim:'#d99a5b',kart:'#d9778a'};
- const ad={vektor:'Vektör',cizgi:'Çizgi film',harita:'Harita',resim:'Resim',kart:'Kart'};
+ const renk={vektor:'#a79be0',uc:'#e2a76f',piksel:'#78c48d',cizgi:'#62b6a8',harita:'#6f9fdc',resim:'#d99a5b',kart:'#d9778a'};
+ const ad={vektor:'Vektör',uc:'3D',piksel:'Piksel',cizgi:'Çizgi film',harita:'Harita',resim:'Resim',kart:'Kart'};
  const onc=$('#onizDil').value; $('#onizDil').innerHTML=P.diller.map(d=>`<option>${d}</option>`).join(''); if(P.diller.includes(onc))$('#onizDil').value=onc;
  planHesapla();
  $('#diller').innerHTML=P.diller.map((d,i)=>`<label><input type="checkbox" value="${d}" ${i==0?'checked':''}>${d.toUpperCase()}</label>`).join('');
@@ -1034,8 +1152,8 @@ function planHesapla(){ // önizleme dilinin seslerine göre sahne süreleri (vi
  P.sure=bas; const bul=no=>P.sahneler.find(s=>s.no===no); P.olaylar.forEach(o=>{const s=bul(o.no); if(s)o.t=s.bas+o.yerel});
  return degisti }
 function zamanKur(){
- const renk={vektor:'#a79be0',cizgi:'#62b6a8',harita:'#6f9fdc',resim:'#d99a5b',kart:'#d9778a'};
- const ad={vektor:'Vektör',cizgi:'Çizgi film',harita:'Harita',resim:'Resim',kart:'Kart'};
+ const renk={vektor:'#a79be0',uc:'#e2a76f',piksel:'#78c48d',cizgi:'#62b6a8',harita:'#6f9fdc',resim:'#d99a5b',kart:'#d9778a'};
+ const ad={vektor:'Vektör',uc:'3D',piksel:'Piksel',cizgi:'Çizgi film',harita:'Harita',resim:'Resim',kart:'Kart'};
  $('#sahneler').innerHTML=P.sahneler.map(s=>`<div class="sahne" data-no="${s.no}" onclick="git(${s.bas+0.01})"><div class="no">${s.no}</div>
   <div><div class="sb">${s.baslik||ad[s.tur]||s.tur}</div><div class="st">${fmt(s.bas)}–${fmt(s.bas+s.sure)} sn${s.oran>1?` · ses ×${s.oran.toFixed(2)}`:''}</div></div><span class="rozet">${ad[s.tur]||s.tur}</span></div>`).join('');
  $('#serit').innerHTML=P.sahneler.map(s=>`<div class="parca" style="flex:${s.sure};background:${renk[s.tur]||'#555'}33">${s.no}</div>`).join('')+'<div id="imlec"></div>';
@@ -1386,12 +1504,29 @@ function duzenleyici(){ if(projeYok())return; durdurOyna(); ANL_ACIK=false; $('#
   if(e.key==='Tab'){e.preventDefault();const t=e.target,s=t.selectionStart;t.setRangeText('  ',s,t.selectionEnd,'end')}}}
 async function kaydet(){ const o=await api('/api/kaydet',{ad:AD,metin:$('#metin').value}); if(o.hata)return bildir(o.hata,1);
  bildir('Kaydedildi'); perdeKapat(); await projeAc(AD)}
-async function yeniProje(){ const ad=prompt('Yeni projenin adı (Türkçe karakter ve boşluk olmadan, örn: piri-reis):'); if(!ad)return;
- const o=await api('/api/yeni',{ad,kaynak:AD,dil:DIL}); if(o.hata)return bildir(o.hata,1); await projeleriYukle(o.ad); bildir('Proje oluşturuldu: '+o.ad)}
+const STILLER=[['vektor','Vektör','Düz renkli, yumuşak hareketli 2D çizimler. Açıklayıcı videolar için en esnek tarz.'],
+ ['uc','3D','Yumuşak ışıklı, gölgeli 3D sahneler: gezegenler, nesneler, maketler. Çizimi biraz daha uzun sürer.'],
+ ['piksel','Piksel art','Eski oyunlar gibi piksel piksel çizilmiş sahneler ve karakterler. Hikâye ve tarih anlatımına uygun.']];
+function yeniProje(){ durdurOyna(); ANL_ACIK=false;
+ $('#perdeIc').innerHTML=`<div style="width:min(760px,90vw);display:flex;flex-direction:column;gap:14px">
+  <h3 style="margin:0;font-size:16px">Yeni proje</h3>
+  <label class="ipucu" style="display:flex;flex-direction:column;gap:6px">Proje adı (küçük harf, rakam ve tire; örn: piri-reis)
+   <input id="ypAd" style="font-size:14px" autocomplete="off" spellcheck="false"></label>
+  <div class="ipucu">Tarz: Claude bu projenin sahnelerini seçtiğin tarzda yazar.</div>
+  <div class="stiller">${STILLER.map(([k,b,a],i)=>`<label class="stil"><input type="radio" name="ypStil" value="${k}" ${i==0?'checked':''}>
+   <img src="/k/veri/stiller/${k}.jpg" alt=""><b>${b}</b><span class="ipucu">${a}</span></label>`).join('')}</div>
+  ${AD?`<label class="onay" style="margin:0"><input type="checkbox" id="ypKopya"><span><b>${kac(AD)} projesini kopyala</b>Tarz seçimi yerine şu anki projenin sahneleri ve metinleri kopyalanır (sesler ve videolar hariç).</span></label>`:''}
+  <div style="display:flex;gap:8px"><span class="bosluk"></span><button class="btn" onclick="perdeKapat()">Vazgeç</button><button class="btn ana" onclick="yeniOlustur()">Oluştur</button></div></div>`;
+ $('#perde').style.display='flex'; setTimeout(()=>$('#ypAd').focus(),50);
+ $('#ypAd').onkeydown=e=>{ if(e.key==='Enter')yeniOlustur() } }
+async function yeniOlustur(){ const ad=$('#ypAd').value.trim().toLowerCase().replace(/\s+/g,'-'); if(!ad)return $('#ypAd').focus();
+ const stil=document.querySelector('input[name=ypStil]:checked').value, kopya=!!($('#ypKopya')&&$('#ypKopya').checked);
+ const o=await api('/api/yeni',{ad,kaynak:AD,kopya,stil,dil:DIL}); if(o.hata)return bildir(o.hata,1);
+ perdeKapat(); await projeleriYukle(o.ad); bildir('Proje oluşturuldu: '+o.ad)}
 function ac(alt){ if(projeYok())return; api('/api/ac',{ad:AD,alt})}
 async function studyoKapat(){ if(!confirm('Stüdyo kapatılsın mı? (Süren video ya da seslendirme işi durdurulur.)'))return; await api('/api/kapat',{});
  document.body.innerHTML='<div style="margin:auto;text-align:center;font-size:20px;color:#d8d6d0">Stüdyo kapatıldı.<br><span style="font-size:14px;color:var(--muted)">Bu sekmeyi kapatabilirsin. Tekrar açmak için Animasyon Stüdyosu simgesine tıkla.</span></div>'}
-dilKur(); projeleriYukle().then(()=>{ if(!localStorage.getItem('kilavuzGoruldu'))kilavuz() }); ttsDurum(1); $('#altyazi').checked=localStorage.getItem('altyazi')==='1'; $('#onceSes').checked=localStorage.getItem('onceSes')!=='0'; api('/api/durum').then(s=>{if(s.calisiyor){$('#olusturBtn').disabled=true;$('#durBtn').style.display='';izle()}});
+dilKur(); projeleriYukle().then(()=>{ if(!localStorage.getItem('kilavuzGoruldu'))kilavuz(); else guncellemeDenetle(false) }); ttsDurum(1); $('#altyazi').checked=localStorage.getItem('altyazi')==='1'; $('#onceSes').checked=localStorage.getItem('onceSes')!=='0'; api('/api/durum').then(s=>{if(s.calisiyor){$('#olusturBtn').disabled=true;$('#durBtn').style.display='';izle()}});
 </script></body></html>"""
 
 
@@ -1405,6 +1540,17 @@ def kapat():
         SUNUCU["s"].shutdown()
 
 
+class StudyoSunucu(ThreadingHTTPServer):
+    """Windows'ta aynı portu ikinci bir sürecin almasını engeller (açık stüdyo varsa onu gösteririz)."""
+    allow_reuse_address = os.name != "nt"
+    daemon_threads = True
+
+    def server_bind(self):
+        if os.name == "nt" and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 def main():
     adres = f"http://127.0.0.1:{PORT}"
     if "--gizli" in sys.argv:      # "Animasyon Stüdyosu.exe" ile penceresiz açılış: yazılar kayıt dosyasına
@@ -1413,9 +1559,17 @@ def main():
             sys.stdout = sys.stderr = open(os.path.join(KOK, "veri", "studyo.log"), "w", encoding="utf-8", buffering=1)
         except OSError:
             pass
-    try:
-        sunucu = ThreadingHTTPServer(("127.0.0.1", PORT), Isleyici)
-    except OSError:   # stüdyo zaten açık: sadece tarayıcıda göster
+    sunucu = None
+    bitis = time.time() + (20 if os.environ.pop("ANIMASYON_BEKLE", None) else 0)   # güncellemeden sonra: eski süreç kapanana kadar bekle
+    while sunucu is None:
+        try:
+            sunucu = StudyoSunucu(("127.0.0.1", PORT), Isleyici)
+        except OSError:
+            if time.time() < bitis:
+                time.sleep(0.4)
+                continue
+            break
+    if sunucu is None:   # stüdyo zaten açık: sadece tarayıcıda göster
         print("Stüdyo zaten açık, tarayıcıda gösteriliyor:", adres)
         if "--tarayici-acma" not in sys.argv:
             webbrowser.open(adres)

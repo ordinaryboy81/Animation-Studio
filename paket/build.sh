@@ -7,7 +7,7 @@ SURUM="$(cat "$K/.surum")"; UV_SURUM="${UV_SURUM:-0.13.7}"
 rm -rf "$C"; mkdir -p "$C/win" "$C/mac"
 
 kopyala() {   # program files only: no projects, voices, models or caches
-  for f in arayuz.py olustur.py tts_yonetici.py ceviri.py bos_sablon.yaml gereksinimler.txt CLAUDE.md BENI_OKU.md README.md LICENSE THIRD_PARTY.md .surum motor araclar fontlar veri; do
+  for f in arayuz.py olustur.py tts_yonetici.py ceviri.py guncelleme.py degisiklikler.json bos_sablon.yaml gereksinimler.txt CLAUDE.md BENI_OKU.md README.md LICENSE THIRD_PARTY.md .surum motor araclar fontlar veri; do
     cp -R "$K/$f" "$1/"
   done
   rm -f "$1/veri/studyo.log" "$1/veri/.kisayol"; find "$1" -name "__pycache__" -prune -exec rm -rf {} +
@@ -22,7 +22,7 @@ if [ -f "$P/uv.exe" ]; then cp "$P/uv.exe" "$C/win/bin/uv.exe"; else
 fi
 cp "$P/windows/kur.cmd" "$C/win/"
 (cd "$P/windows" && makensis -V2 -INPUTCHARSET UTF8 baslatici.nsi && mv baslatici.exe "$C/win/Animation Studio.exe")
-(cd "$P/windows" && makensis -V2 -INPUTCHARSET UTF8 kurulum.nsi)
+(cd "$P/windows" && makensis -V2 -INPUTCHARSET UTF8 "-DSURUM=$SURUM" kurulum.nsi)
 
 # ---- macOS (Apple silicon and Intel) ----
 A="$C/mac/Animation Studio.app/Contents"
