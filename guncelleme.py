@@ -67,12 +67,12 @@ def kontrol(zorla=False):
     if not zorla and _ONBELLEK["veri"] and time.time() - _ONBELLEK["zaman"] < 3600:
         return dict(d, **{k: _ONBELLEK["veri"][k] for k in ("son", "yeni", "notlar")}, hata=_ONBELLEK["veri"].get("hata"))
     try:
-        son = indir(HAM + ".surum", 10).decode("utf-8").strip()
+        son = indir(HAM + ".surum?t=%d" % time.time(), 10).decode("utf-8").strip()
         d["son"] = son
         d["yeni"] = kiyas(son) > kiyas(yerel)
         if d["yeni"]:
             try:
-                tum = json.loads(indir(HAM + "degisiklikler.json", 10).decode("utf-8"))
+                tum = json.loads(indir(HAM + "degisiklikler.json?t=%d" % time.time(), 10).decode("utf-8"))
                 d["notlar"] = [n for n in tum if kiyas(n.get("surum")) > kiyas(yerel)]
             except Exception:  # noqa: BLE001
                 d["notlar"] = []
